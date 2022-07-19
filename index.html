@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>GEO</title>
+    <style>
+        .map {
+            height: 500px;
+            width: 500px;
+        }
+
+        .cookie {
+            position: fixed;
+            left: 42%;
+            right: 42%;
+            bottom: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<main style="display: flex">
+    <div style="margin-right: 40px">
+        <div id="userPosition"></div>
+        <input id="cityName" type="text">
+        <input id="submit" type="button" value=">">
+        <div id="map" class="map"></div>
+    </div>
+        <div id="warehouses"></div>
+</main>
+<script src="script.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDqrCHffUrvPfcTCAl7plI8UcbPBxI6aok&callback=getLocation&v=weekly"
+        async defer></script>
+</body>
+</html>
