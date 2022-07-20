@@ -1,7 +1,7 @@
-let userPosition = document.getElementById("userPosition");
-let warehouses = document.getElementById("warehouses");
-let sbmButton = document.getElementById("submit");
-let cityName = document.getElementById("cityName");
+const userPosition = document.getElementById("userPosition");
+const warehouses = document.getElementById("warehouses");
+const sbmButton = document.getElementById("submit");
+const cityName = document.getElementById("cityName");
 
 sbmButton.onclick = () => {
     localStorage.setItem("cityName", cityName.value);
@@ -10,95 +10,111 @@ sbmButton.onclick = () => {
 }
 
 function getLocation() {
-    if ("location" in localStorage) {
+    if ("location" in localStorage) { //if user data is in cookie
         showPosition(JSON.parse(localStorage.getItem("location")));
-    } else if (navigator.geolocation) {
+    } else if (navigator.geolocation) { //if user is newbie
         navigator.geolocation.getCurrentPosition(showPosition);
-    } else {
+    } else { //if user don't give permission
         userPosition.innerHTML = "Geolocation is not supported by this browser.";
     }
 }
 
 function showPosition(position) {
-    let latitude = position.coords.latitude;
-    let longitude = position.coords.longitude;
-
-    let latlng = new google.maps.LatLng(latitude, longitude);
-    let geocoder = new google.maps.Geocoder();
-
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
     let center = {lat: latitude, lng: longitude};
 
-    geocoder.geocode({'latLng': latlng}, (results, status) => {
-        if (status == google.maps.GeocoderStatus.OK) {
-            userPosition.innerHTML = "Ви знаходитесь: " + results[6].formatted_address;
-            localStorage.setItem("cityName", results[6].formatted_address.split(", ")[0]);
-            let address = results[6].formatted_address.split(", ")[0];
-        }
-    });
+    saveUserPosition(latitude, longitude);
 
-    let location = JSON.stringify({
+    latLngToAddress(latitude, longitude);
+
+    connectToNpAPI(latitude, longitude, center);
+}
+
+function saveUserPosition(latitude, longitude) {
+    const location = JSON.stringify({
         coords: {
             latitude: latitude,
             longitude: longitude
         }
-    })
+    });
 
+    //save user position to localStorage
     if (!("location" in localStorage) || localStorage.getItem("location") !== location) {
-        localStorage.setItem("location", location)
+        localStorage.setItem("location", location);
     }
+}
 
-    fetch("https://api.novaposhta.ua/v2.0/json/", {
+function latLngToAddress(latitude, longitude) {
+    const latlng = new google.maps.LatLng(latitude, longitude);
+    const geocoder = new google.maps.Geocoder();
+
+    //transform coords to address
+    geocoder.geocode({'latLng': latlng}, (results, status) => {
+        if (status == google.maps.GeocoderStatus.OK) {
+            userPosition.innerHTML = "Ви знаходитесь: " + results[6].formatted_address;
+            localStorage.setItem("cityName", results[6].formatted_address.split(", ")[0]);
+        }
+    });
+}
+
+function connectToNpAPI(latitude, longitude, center) {
+    fetch("https://api.novaposhta.ua/v2.0/json/", { //make request to NP
         method: 'POST',
         headers: {
             'Content-Type': 'application/json;charset=utf-8'
         },
         body: JSON.stringify({
-            "apiKey": "e24be4b216cf0c581562d6eb99b65081",
+            "apiKey": "npUserAPI", //user API (removed now)
             "modelName": "Address",
             "calledMethod": "getWarehouses",
             "methodProperties": {
-                "CityName" : localStorage.getItem("cityName"),
-                "Page" : "1",
-                "Limit" : "50",
-                "Language" : "UA"
+                "CityName": localStorage.getItem("cityName"),
+                "Page": "1",
+                "Limit": "50",
+                "Language": "UA"
             }
         })
     })
-        .then(res => res.json())
+        .then(res => res.json())//receive JSON answer
         .then(data => {
-            if(localStorage.getItem("search")==="true") {
-                center = {lat: parseFloat(data.data[0]["Latitude"]), lng: parseFloat(data.data[0]["Longitude"])}
-            }
+            showWarehouses(data.data, center, latitude, longitude);
+        });
+}
 
-            let opt = {
-                center: center,
-                zoom: 12
-            }
+function showWarehouses(npList, center, latitude, longitude) {
+    if (localStorage.getItem("search") === "true") { //if user try to find warehouses in certain city
+        center = {lat: parseFloat(npList[0]["Latitude"]), lng: parseFloat(npList[0]["Longitude"])} //center of map in first warehouse
+    }
 
-            let myMap = new google.maps.Map(document.getElementById("map"), opt);
+    let opt = {
+        center: center,
+        zoom: 12
+    }
+
+    const myMap = new google.maps.Map(document.getElementById("map"), opt);
 
 
-            let marker = new google.maps.Marker({
-                position: {
-                    lat: latitude,
-                    lng: longitude
-                },
-                map: myMap,
-                title: "Ви тут",
-            });
+    let marker = new google.maps.Marker({
+        position: {
+            lat: latitude,
+            lng: longitude
+        },
+        map: myMap,
+        title: "Ви тут",
+    });
 
-            warehouses.innerHTML = "Відділення:<br>"
-            data.data.forEach(warehouse => {
-                warehouses.innerHTML += warehouse["Description"]+"<br>";
-                let tmp = new google.maps.Marker({
-                    position: {
-                        lat: parseFloat(warehouse["Latitude"]),
-                        lng: parseFloat(warehouse["Longitude"])
-                    },
-                    map: myMap,
-                    title: "Нова Пошта",
-                    icon: "postMarker.svg"
-                });
-            })
-        })
+    warehouses.innerHTML = "Відділення:<br>"
+    npList.forEach(warehouse => {
+        warehouses.innerHTML += warehouse["Description"] + "<br>";
+        let tmp = new google.maps.Marker({
+            position: {
+                lat: parseFloat(warehouse["Latitude"]),
+                lng: parseFloat(warehouse["Longitude"])
+            },
+            map: myMap,
+            title: "Нова Пошта",
+            icon: "postMarker.svg"
+        });
+    });
 }
